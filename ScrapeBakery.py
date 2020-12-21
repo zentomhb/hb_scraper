@@ -129,8 +129,9 @@ class IdeaPage():
         self.links = recombine_link_list([scrape_link_values(n) for n in idea_header.findAll('font', attrs={'class':'fcm'})])
         self.annos = recombine_anno_list([scrape_annotations(n) for n in idea_header.next_siblings if n.name=='table'])
         #print("".join([str(j) for j in [title, description, copy, user, idate, links, annos]]).encode("utf-8"))
-        self.ihash = md5("".join([str(j) for j in [self.title, self.description, self.copy, self.user, self.idate, self.links, self.annos]]).encode("utf-8")).hexdigest()
+        self.hash = md5("".join([str(j) for j in [self.title, self.description, self.copy, self.user, self.idate, self.links, self.annos]]).encode("utf-8")).hexdigest()
         self.update_since = start_timestamp
+        print (self.hash)
 
     def __repr__(self):
         return "<Class:IdeaPage:" + str(self.to_dict()) + ">"
@@ -139,7 +140,7 @@ class IdeaPage():
         return {
                      "fetch_id" : self.fetch_id,
                      "url" : self.url,
-                     "hash" : self.ihash,
+                     "hash" : self.hash,
                      "title":self.title,
                      "description" : self.description,
                      "copy" : self.copy,
@@ -194,7 +195,16 @@ class DataStore():
             print("Building new schema any existing content will be lost.")
             self.sql_create_schema()
 
-    def save_idea(self, idea):
+    def save_idea(self, idea, force_overwrite=False):
+        c=self.connection.cursor()
+        if not force_overwrite:
+            test_content = self.query_to_recordset("select url, hash, fetch_id from fresh_ideas where url = ?", [idea.url])
+            if len(test_content) > 0 and test_content[0]['hash']==idea.hash:
+                print("Hashmatch - already cached")
+                return None
+            else:
+                print("Saving.")
+
         c=self.connection.cursor()
         idea_insert_sql = """INSERT INTO idea_fetch VALUES
                             ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"""
@@ -211,7 +221,7 @@ class DataStore():
                        idea.description,
                        idea.copy,
                        idea.user,
-                       idea.idea_date,
+                       idea.idate,
                        idea.fetch_date,
                        idea.update_since]
         #for e,v in enumerate(idea_values):
@@ -336,6 +346,7 @@ class DataStore():
                             CREATE VIEW fresh_ideas as
                             select  i.url url,
                                     i.fetch_id fetch_id,
+                                    i.hash hash,
                                     i.fetch_date fetch_date
                                 from
                                 idea_fetch i join
@@ -362,21 +373,22 @@ class DataStore():
             user_content_sql="""
                     CREATE VIEW latest_user_content
                     as
-                    select f.url, i.fetch_id, idea_date date, user, "idea" ctype, copy text
+                    select f.url, i.fetch_id, i.idea_date date, user, "idea" ctype, -1 seq, copy text
                                     from
                                     idea_fetch i
                                     join fresh_ideas f on i.fetch_id = f.fetch_id
 
                     union all
-                        select f.url, a.fetch_id, anno_date date, anno_user user, "anno" ctype, anno_text text
+                        select f.url, a.fetch_id, anno_date date, anno_user user, "anno" ctype, anno_seq seq, anno_text text
                                     from
                                     anno_fetch a
                                     join fresh_ideas f on a.fetch_id = f.fetch_id
                     union all
-                        select f.url, l.fetch_id, link_date date, link_user user, "link" ctype, link_text || " " || link_anno text  
+                        select f.url, l.fetch_id, link_date date, link_user user, "link" ctype, link_seq seq, link_text || " " || link_anno text
                                     from
                                     link_fetch l
                                     join fresh_ideas f on l.fetch_id = f.fetch_id
+                    order by date, seq, url
             """
 
             c.execute(user_content_sql)
