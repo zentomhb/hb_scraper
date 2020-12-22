@@ -168,12 +168,14 @@ class HarvestLinks():
         print("Processing...\n {l} pages to collect".format(l=len(self.fetch_links)))
         ping_n = 10
         contents=[]
+        e=0
         for e,l in enumerate(self.fetch_links):
             contents.append(IdeaPage(l,self.start_timestamp))
             if (e+1) % ping_n == 0:
                 print ("Read {e} of {l}...".format(e=e+1, l=len(self.fetch_links)))
         print( )
-        print ("Complete read {e} of {l}".format(e=e+1, l=len(self.fetch_links)))
+        if e > 0:
+            print ("Complete read {e} of {l}".format(e=e+1, l=len(self.fetch_links)))
 
         self.lindex = [c.url for c in contents]
         self.contents=contents
@@ -183,17 +185,31 @@ class DataStore():
         if storage_db is None:
             storage_db = "hb.db"
         self.connection = sqlite3.connect(storage_db)
+        try:
+            content_test = self.query_to_recordset("select count(*) count from idea_fetch")
+            print ("idea count: {c}".format(c=content_test[0]["count"]))
+        except:
+            print("Idea-count failed.")
         # Test whether all the needed tables exist - if not, create a new schema:
         table_test = self.query_to_recordset("select tbl_name from sqlite_master")
         if table_test==[{'tbl_name': 'idea_fetch'},
-                        {'tbl_name': 'anno_fetch'},
-                        {'tbl_name': 'link_fetch'}] and trash==False:
+                {'tbl_name': 'anno_fetch'},
+                {'tbl_name': 'link_fetch'},
+                {'tbl_name': 'fresh_ideas'},
+                {'tbl_name': 'latest_user_content'}] and trash==False:
             # Expected content in the database - do nothing
             print("Database Schema Exists")
 
         else:
-            print("Building new schema any existing content will be lost.")
-            self.sql_create_schema()
+            if trash is not False:
+                print("Building new schema any existing content will be lost.")
+                self.sql_create_schema()
+            else:
+                print ("Schema change - please review the contents of your database - maybe a version mismatch")
+
+    def __del__(self):
+        print ("Closing Session")
+        self.connection.close()
 
     def save_idea(self, idea, force_overwrite=False):
         c=self.connection.cursor()
@@ -227,6 +243,7 @@ class DataStore():
         #for e,v in enumerate(idea_values):
         #    print(e,v)
         c.execute(idea_insert_sql, idea_values)
+        self.connection.commit()
         for anno in idea.annos:
             anno_values = [idea.fetch_id,
                            anno[0],
@@ -234,7 +251,7 @@ class DataStore():
                            anno[2],
                            anno[3]]
             c.execute(anno_insert_sql, anno_values)
-
+        self.connection.commit()
         for link in idea.links:
             link_values = [idea.fetch_id,
                            link[0],
@@ -245,6 +262,7 @@ class DataStore():
                            link[5],
                            link[6]]
             c.execute(link_insert_sql, link_values)
+        self.connection.commit()
         c.close()
 
     def query_to_recordset(self, query, parameters=None):
@@ -393,10 +411,11 @@ class DataStore():
 
             c.execute(user_content_sql)
             c.close()
+
         except Exception as err:
             print ( err )
 
-
+        self.connection.connit()
 
 
 
