@@ -391,7 +391,18 @@ class DataStore():
             user_content_sql="""
                     CREATE VIEW latest_user_content
                     as
-                    select f.url, i.fetch_id, i.idea_date date, user, "idea" ctype, -1 seq, copy text
+
+                    select f.url, i.fetch_id, i.idea_date date, user, "idea_title" ctype, -3 seq, title text
+                                    from
+                                    idea_fetch i
+                                    join fresh_ideas f on i.fetch_id = f.fetch_id
+                    union all
+                        select f.url, i.fetch_id, i.idea_date date, user, "idea_description" ctype, -2 seq, description text
+                                    from
+                                    idea_fetch i
+                                    join fresh_ideas f on i.fetch_id = f.fetch_id
+                    union all
+                        select f.url, i.fetch_id, i.idea_date date, user, "idea" ctype, -1 seq, copy text
                                     from
                                     idea_fetch i
                                     join fresh_ideas f on i.fetch_id = f.fetch_id
