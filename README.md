@@ -3,13 +3,17 @@
 
 See http://www.halfbakery.com/idea/F_fcrst_20annual_20HalfBakery_20_93Wo_20ist_20der_20F_fchrer_20_3f_94_20programming_20competition_2e#1608584088 for context.
 
+### 30th December
+
+  1.  Added searches for additional historical figures.
+  
 ### 26th December
 
 A series of edits including:
 
   1. fixes to perform commits, where previously the database was essentially had a single session lifespan.
   2. Inclusion of idea_title and idea_description into the searchable collection of user-contributions. (This fix prompted by Dub's BREXIT Whoopie Cushion idea that initially didn't trigger any update to the latest search)
-  
+
 
 ### 21st December 2020
 Now producing outputs to topic searches, still running within a jupyter notebook, only now referencing core utilities via calls to python imports.

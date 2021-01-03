@@ -108,14 +108,13 @@ class IdeaPage():
     fetch_date=None
     update_since=None
 
-    def __init__(self, hb_link, start_timestamp):
+    def __init__(self, hb_link, raw_content, start_timestamp):
         l=hb_link
         self.url=l
-        s = requests.Session()
-        r = s.get(l)
+        r = raw_content
         self.start_timestamp = start_timestamp
         self.fetch_date=datetime.datetime.now().timestamp()
-        soup=bs(r.text,"html.parser")
+        soup=bs(r,"html.parser")
         mainpanel = soup.find('td', attrs={'class':'mainpanel'})
         idea_header = mainpanel.findAll('table')[2]
         self.title = str("".join(idea_header.find('a', attrs={'name':'idea'}).strings))
@@ -131,6 +130,7 @@ class IdeaPage():
         #print("".join([str(j) for j in [title, description, copy, user, idate, links, annos]]).encode("utf-8"))
         self.hash = md5("".join([str(j) for j in [self.title, self.description, self.copy, self.user, self.idate, self.links, self.annos]]).encode("utf-8")).hexdigest()
         self.update_since = start_timestamp
+
         print (self.hash)
 
     def __repr__(self):
@@ -169,10 +169,17 @@ class HarvestLinks():
         ping_n = 10
         contents=[]
         e=0
+        s = requests.Session()
+
         for e,l in enumerate(self.fetch_links):
-            contents.append(IdeaPage(l,self.start_timestamp))
-            if (e+1) % ping_n == 0:
-                print ("Read {e} of {l}...".format(e=e+1, l=len(self.fetch_links)))
+            r = s.get(l)
+            if r.status_code==200:
+                raw_content=r.text
+                contents.append(IdeaPage(l,raw_content, self.start_timestamp))
+                if (e+1) % ping_n == 0:
+                    print ("Read {e} of {l}...".format(e=e+1, l=len(self.fetch_links)))
+            else:
+                print(r.status_code)
         print( )
         if e > 0:
             print ("Complete read {e} of {l}".format(e=e+1, l=len(self.fetch_links)))
